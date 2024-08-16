@@ -86,15 +86,25 @@ $certPassword = Read-Host "Contraseña del certificado PFX" -AsSecureString
 # Convertir la contraseña a una cadena de texto para el comando
 $certPasswordText = [System.Net.NetworkCredential]::new([string]::Empty, $certPassword).Password
 
+# Solicitar el algoritmo de hash
+Write-Host "Por favor, ingrese el algoritmo de hash para firmar el paquete (deje vacío para usar el valor predeterminado 'SHA256')."
+$hashAlgorithm = Read-Host "Algoritmo de hash"
+
+# Usar el valor predeterminado si el usuario no proporciona uno
+if ([string]::IsNullOrWhiteSpace($hashAlgorithm)) {
+    $hashAlgorithm = "SHA256"
+}
+
 # Imprimir los valores para depuración
 Write-ColorMessage "Firmando el paquete MSIXBundle con los siguientes valores:" -color Green
 Write-ColorMessage "Ruta del archivo MSIXBundle: $bundlePath" -color Green
 Write-ColorMessage "Ruta del archivo de certificado: $certPath" -color Green
 Write-ColorMessage "Contraseña del certificado: [PROPORCIONADA]" -color Green
+Write-ColorMessage "Algoritmo de hash: $hashAlgorithm" -color Green
 
 # Ejecutar el comando signtool y manejar errores
 try {
-    & $signtoolPath sign /fd SHA256 /a /f $certPath /p $certPasswordText $bundlePath
+    & $signtoolPath sign /fd $hashAlgorithm /a /f $certPath /p $certPasswordText $bundlePath
     Write-ColorMessage "El paquete MSIXBundle se firmó con éxito." -color Green
 } catch {
     Write-ColorMessage "Error: No se pudo firmar el paquete MSIXBundle." -color Red
