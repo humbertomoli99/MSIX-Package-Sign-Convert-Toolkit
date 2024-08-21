@@ -54,6 +54,24 @@ $makeappxPath = Join-Path -Path $sdkPath.FullName -ChildPath "x64\makeappx.exe"
 # Solicitar al usuario el nombre de la carpeta que contiene los archivos .msix
 $inputFolder = Read-Host "Ingrese la ruta de la carpeta que contiene los archivos .msix para empaquetar"
 
+# Verificar si se ingresó una carpeta, si no se ingresó, crear una carpeta por defecto en el directorio del usuario
+if ([string]::IsNullOrWhiteSpace($inputFolder)) {
+    $defaultFolder = [System.IO.Path]::Combine([System.Environment]::GetFolderPath('Desktop'), "MSIX_Packages")
+    if (-not (Test-Path $defaultFolder)) {
+        New-Item -Path $defaultFolder -ItemType Directory | Out-Null
+        Write-Host "No se proporcionó una ruta de carpeta. Se ha creado la carpeta por defecto en: $defaultFolder" -ForegroundColor Green
+    } else {
+        Write-Host "No se proporcionó una ruta de carpeta. Usando la carpeta existente: $defaultFolder" -ForegroundColor Green
+    }
+    $inputFolder = $defaultFolder
+} else {
+    # Verificar que la carpeta ingresada existe
+    if (-not (Test-Path $inputFolder)) {
+        Write-Host "La carpeta especificada no existe. Creando la carpeta en: $inputFolder" -ForegroundColor Yellow
+        New-Item -Path $inputFolder -ItemType Directory | Out-Null
+    }
+}
+
 # Verificar que la carpeta contiene únicamente archivos .msix
 $filesToPack = Get-ChildItem -Path $inputFolder -Filter *.msix -File
 $otherFiles = Get-ChildItem -Path $inputFolder -File | Where-Object { $_.Extension -ne ".msix" }
