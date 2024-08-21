@@ -1,114 +1,107 @@
-# Función para escribir mensajes en color
-function Write-ColorMessage {
-    param (
-        [string]$message,
-        [ConsoleColor]$color
-    )
-    $originalColor = $Host.UI.RawUI.ForegroundColor
-    $Host.UI.RawUI.ForegroundColor = $color
-    Write-Host $message
-    $Host.UI.RawUI.ForegroundColor = $originalColor
+# Obtener el directorio base de los SDKs de Windows
+$windowsKitsPath = "C:\Program Files (x86)\Windows Kits\10\bin"
+
+# Obtener las versiones de SDK disponibles en el sistema
+$availableSdks = Get-ChildItem -Directory -Path $windowsKitsPath | Where-Object { $_.Name -match '^\d+\.\d+\.\d+\.\d+$' }
+
+# Verificar si se encontraron SDKs
+if ($availableSdks.Count -eq 0) {
+    Write-Host "No se encontraron versiones de SDK de Windows instaladas." -ForegroundColor Red
+    exit
 }
 
-# Ruta del ejecutable signtool
-$signtoolPath = "C:\Program Files (x86)\Windows Kits\10\bin\10.0.22621.0\x64\signtool.exe"
+# Filtrar solo los SDKs que contienen signtool.exe
+$sdksWithSignTool = @()
+foreach ($sdk in $availableSdks) {
+    $signtoolPath = Join-Path -Path $sdk.FullName -ChildPath "x64\signtool.exe"
+    if (Test-Path $signtoolPath) {
+        $sdksWithSignTool += $sdk
+    }
+}
 
-# Obtener el directorio del script
+# Verificar si se encontraron SDKs con signtool.exe
+if ($sdksWithSignTool.Count -eq 0) {
+    Write-Host "No se encontraron SDKs de Windows que contengan signtool.exe." -ForegroundColor Red
+    exit
+}
+
+# Mostrar las opciones de SDKs disponibles con signtool.exe con numeración
+Write-Host "Se encontraron las siguientes versiones de SDK de Windows que contienen signtool.exe:" -ForegroundColor Cyan
+for ($i = 0; $i -lt $sdksWithSignTool.Count; $i++) {
+    $sdkVersion = $sdksWithSignTool[$i].Name
+    if ($sdkVersion -match '^10\.0\.(\d+)\.0$') {
+        if ($matches[1] -lt 22000) {
+            Write-Host "$($i + 1). $sdkVersion - Windows 10 SDK" -ForegroundColor Green
+        } else {
+            Write-Host "$($i + 1). $sdkVersion - Windows 11 SDK" -ForegroundColor Yellow
+        }
+    }
+}
+
+# Pedir al usuario que seleccione una versión del SDK usando el número correspondiente
+$sdkIndex = Read-Host "Seleccione el número de la versión de SDK que desea utilizar"
+
+# Verificar si el usuario ingresó un número válido
+if (-not [int]::TryParse($sdkIndex, [ref]$sdkIndex) -or $sdkIndex -lt 1 -or $sdkIndex -gt $sdksWithSignTool.Count) {
+    Write-Host "Selección no válida. Saliendo del script." -ForegroundColor Red
+    exit
+}
+
+# Obtener la ruta del SDK seleccionado
+$sdkPath = $sdksWithSignTool[$sdkIndex - 1]
+$signtoolPath = Join-Path -Path $sdkPath.FullName -ChildPath "x64\signtool.exe"
+
+# Solicitar al usuario que seleccione el archivo .pfx (clave) arrastrándolo a la consola
+$keyFile = Read-Host "Arrastre el archivo .pfx a la consola y presione Enter"
+
+# Verificar si el archivo .pfx existe
+if (-not (Test-Path $keyFile)) {
+    Write-Host "El archivo de clave no se encontró." -ForegroundColor Red
+    exit
+}
+
+# Obtener el nombre del primer archivo .msix en el directorio del script
 $scriptDir = Split-Path -Path $MyInvocation.MyCommand.Path -Parent
+$msixFile = Get-ChildItem -Path $scriptDir -Filter *.msix | Select-Object -First 1
 
-# Definir rutas predeterminadas
-$defaultPackageFolder = Join-Path -Path $scriptDir -ChildPath "AppPackages"
-
-# Crear la carpeta predeterminada si no existe
-if (-Not (Test-Path $defaultPackageFolder)) {
-    Write-ColorMessage "La carpeta '$defaultPackageFolder' no existe. Se creará automáticamente." -color Yellow
-    New-Item -Path $defaultPackageFolder -ItemType Directory | Out-Null
-    Write-ColorMessage "Por favor, arrastre los archivos MSIX a la carpeta '$defaultPackageFolder' y presione cualquier tecla para continuar..." -color Yellow
-    [void][System.Console]::ReadKey($true)
-}
-
-# Solicitar al usuario la carpeta de entrada
-Write-Host "Por favor, ingrese la ruta de la carpeta que contiene los archivos MSIX (deje vacío para usar la carpeta predeterminada '$defaultPackageFolder')."
-$inputFolder = Read-Host "Ruta de la carpeta de entrada"
-
-# Usar la ruta predeterminada si el usuario no proporciona una
-if ([string]::IsNullOrWhiteSpace($inputFolder)) {
-    $inputFolder = $defaultPackageFolder
-}
-
-# Verificar si la carpeta existe
-if (-Not (Test-Path $inputFolder)) {
-    Write-ColorMessage "Error: La carpeta '$inputFolder' no se encontró." -color Red
-    Write-Host "Presiona cualquier tecla para salir..."
-    [void][System.Console]::ReadKey($true)
+# Verificar si se encontró un archivo .msix
+if (-not $msixFile) {
+    Write-Host "No se encontró ningún archivo .msix en el directorio del script." -ForegroundColor Red
     exit
 }
 
-# Verificar que solo hay archivos MSIX en la carpeta
-$files = Get-ChildItem -Path $inputFolder -Filter *.msix
-if ($files.Count -eq 0) {
-    Write-ColorMessage "Error: La carpeta '$inputFolder' no contiene archivos MSIX." -color Red
-    Write-Host "Presiona cualquier tecla para salir..."
-    [void][System.Console]::ReadKey($true)
-    exit
-}
+# Construir la ruta del paquete .msixbundle
+$bundleFile = $msixFile.FullName -replace '\.msix$', '.msixbundle'
 
-# Obtener el primer archivo MSIX
-$firstMsixFile = $files[0]
-$baseFileName = [System.IO.Path]::GetFileNameWithoutExtension($firstMsixFile.FullName)
-$defaultBundlePath = Join-Path -Path $inputFolder -ChildPath "$baseFileName.msixbundle"
-
-# Solicitar al usuario el nombre del archivo de paquete
-Write-Host "Por favor, ingrese el nombre del archivo MSIXBundle que desea crear (deje vacío para usar la ruta predeterminada '$defaultBundlePath')."
-$bundlePath = Read-Host "Nombre del archivo MSIXBundle"
-
-# Usar la ruta predeterminada si el usuario no proporciona una
-if ([string]::IsNullOrWhiteSpace($bundlePath)) {
-    $bundlePath = $defaultBundlePath
-}
-
-# Solicitar al usuario la ruta del archivo de certificado
-Write-Host "Por favor, ingrese la ruta del archivo de certificado PFX (deje vacío para arrastrar el archivo a la terminal)."
-Write-Host "Arrastre el archivo PFX a la terminal y presione Enter."
-$certPath = Read-Host "Ruta del archivo PFX"
-
-# Verificar si el archivo de certificado existe
-if (-Not (Test-Path $certPath)) {
-    Write-ColorMessage "Error: El archivo de certificado '$certPath' no se encontró." -color Red
-    Write-Host "Presiona cualquier tecla para salir..."
-    [void][System.Console]::ReadKey($true)
-    exit
-}
-
-# Solicitar al usuario la contraseña del certificado
-$certPassword = Read-Host "Contraseña del certificado PFX" -AsSecureString
-
-# Convertir la contraseña a una cadena de texto para el comando
-$certPasswordText = [System.Net.NetworkCredential]::new([string]::Empty, $certPassword).Password
-
-# Solicitar el algoritmo de hash
-Write-Host "Por favor, ingrese el algoritmo de hash para firmar el paquete (deje vacío para usar el valor predeterminado 'SHA256')."
-$hashAlgorithm = Read-Host "Algoritmo de hash"
-
-# Usar el valor predeterminado si el usuario no proporciona uno
-if ([string]::IsNullOrWhiteSpace($hashAlgorithm)) {
+# Solicitar al usuario que seleccione el algoritmo de hash, con SHA256 como default
+$hashAlgorithm = Read-Host "Ingrese el algoritmo de hash (presione Enter para usar SHA256)" 
+if (-not $hashAlgorithm) {
     $hashAlgorithm = "SHA256"
 }
 
-# Imprimir los valores para depuración
-Write-ColorMessage "Firmando el paquete MSIXBundle con los siguientes valores:" -color Green
-Write-ColorMessage "Ruta del archivo MSIXBundle: $bundlePath" -color Green
-Write-ColorMessage "Ruta del archivo de certificado: $certPath" -color Green
-Write-ColorMessage "Contraseña del certificado: [PROPORCIONADA]" -color Green
-Write-ColorMessage "Algoritmo de hash: $hashAlgorithm" -color Green
+# Intentos de firma con manejo de errores
+$maxAttempts = 3
+$attempt = 0
+$success = $false
 
-# Ejecutar el comando signtool y manejar errores
-try {
-    & $signtoolPath sign /fd $hashAlgorithm /a /f $certPath /p $certPasswordText $bundlePath
-    Write-ColorMessage "El paquete MSIXBundle se firmó con éxito." -color Green
-} catch {
-    Write-ColorMessage "Error: No se pudo firmar el paquete MSIXBundle." -color Red
-} finally {
-    Write-Host "Presiona cualquier tecla para salir..."
-    [void][System.Console]::ReadKey($true)
+while ($attempt -lt $maxAttempts -and -not $success) {
+    # Solicitar la contraseña para el archivo .pfx
+    $password = Read-Host "Ingrese la contraseña del archivo .pfx (Intento $($attempt + 1) de $maxAttempts)" -AsSecureString
+    
+    try {
+        # Comando para firmar el paquete
+        Write-Host "Firmando el paquete con el SDK seleccionado..." -ForegroundColor Cyan
+        Start-Process -FilePath $signtoolPath -ArgumentList @("sign", "/fd", $hashAlgorithm, "/a", "/f", $keyFile, "/p", $password, $bundleFile) -NoNewWindow -Wait -ErrorAction Stop
+        Write-Host "El paquete ha sido firmado exitosamente." -ForegroundColor Green
+        $success = $true
+    } catch {
+        Write-Host "Error al firmar el paquete: $_. Exception.Message" -ForegroundColor Red
+        $attempt++
+        if ($attempt -lt $maxAttempts) {
+            Write-Host "Intente de nuevo." -ForegroundColor Yellow
+        } else {
+            Write-Host "Número máximo de intentos alcanzado. Saliendo del script." -ForegroundColor Red
+            exit
+        }
+    }
 }
