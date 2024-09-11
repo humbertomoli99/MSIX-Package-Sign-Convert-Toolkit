@@ -1,44 +1,44 @@
-# Script de Empaquetado y Firma de MSIX
+# MSIX Packaging and Signing Script
 
-Este conjunto de scripts en PowerShell te permite:
+This set of PowerShell scripts allows you to:
 
-1. **Seleccionar y empaquetar** archivos `.msix` en un paquete `.msixbundle` utilizando la herramienta `makeappx.exe` disponible en los SDKs de Windows instalados.
-2. **Firmar** el paquete `.msixbundle` utilizando un certificado `.pfx` y la herramienta `signtool.exe` de los SDKs de Windows.
-3. **Convertir** un archivo `.pfx` a una cadena Base64 y guardarlo en un archivo `.txt`.
+1. **Select and package** `.msix` files into a `.msixbundle` package using the `makeappx.exe` tool available in the installed Windows SDKs.
+2. **Sign** the `.msixbundle` package using a `.pfx` certificate and the `signtool.exe` tool from the Windows SDKs.
+3. **Convert** a `.pfx` file to a Base64 string and save it to a `.txt` file.
 
-## Requisitos
+## Requirements
 
-- Tener instalado el **SDK de Windows**, el cual incluye las herramientas `makeappx.exe` y `signtool.exe`.
-- **PowerShell** versión 5.0 o superior.
-- Certificado **.pfx** válido para firmar los paquetes.
+- Have the **Windows SDK** installed, which includes the `makeappx.exe` and `signtool.exe` tools.
+- **PowerShell** version 5.0 or higher.
+- Valid **.pfx** certificate to sign the packages.
 
-## Instrucciones de uso
+## Instructions for use
 
-### Empaquetado de archivos .msix en un MSIXBundle
+### Packaging .msix files into an MSIXBundle
 
-1. Ejecuta el script en PowerShell.
-2. El script detectará los SDKs instalados y te permitirá seleccionar la versión que deseas utilizar. Mostrará los SDKs que contienen la herramienta `makeappx.exe`.
-3. Se te pedirá que ingreses la carpeta que contiene los archivos `.msix`. Si no ingresas una ruta, el script creará una carpeta predeterminada en el Escritorio.
-4. Asegúrate de que la carpeta seleccionada contenga solo archivos `.msix`. Si hay otros archivos, el script te advertirá.
-5. Ingresa un nombre para el archivo de salida del paquete `.msixbundle`. Si no lo ingresas, el script usará el nombre del primer archivo `.msix` en la carpeta.
-6. El script empaquetará los archivos `.msix` en un archivo `.msixbundle`.
+1. Run the script in PowerShell.
+2. The script will detect the installed SDKs and allow you to select the version you want to use. It will display the SDKs that contain the `makeappx.exe` tool.
+3. You will be prompted to enter the folder that contains the `.msix` files. If you do not enter a path, the script will create a default folder on the Desktop.
+4. Make sure that the selected folder contains only `.msix` files. If there are other files, the script will warn you.
+5. Enter a name for the output file of the `.msixbundle` package. If you do not enter a name, the script will use the name of the first `.msix` file in the folder.
+6. The script will package the `.msix` files into a `.msixbundle` file.
 
-### Firma del paquete MSIXBundle
+### Signing the MSIXBundle
 
-1. El script también te permitirá seleccionar los SDKs que contienen la herramienta `signtool.exe`.
-2. Selecciona el SDK que deseas utilizar para firmar el paquete.
-3. Proporciona el archivo de certificado `.pfx` y la contraseña correspondiente.
-4. Elige el algoritmo de hash (por defecto SHA256).
-5. El script intentará firmar el paquete hasta un máximo de 3 veces si se ingresan credenciales incorrectas.
+1. The script will also allow you to select SDKs that contain the `signtool.exe` tool.
+2. Select the SDK you want to use to sign the package.
+3. Provide the `.pfx` certificate file and the corresponding password.
+4. Choose the hash algorithm (default SHA256).
+5. The script will attempt to sign the package up to a maximum of 3 times if incorrect credentials are entered.
 
-### Convertir un archivo .pfx a Base64
+### Converting a .pfx file to Base64
 
-1. El script te solicitará que ingreses la ruta del archivo `.pfx` que deseas convertir.
-2. Especifica un nombre para el archivo de salida (sin la extensión). Si no lo haces, se usará el mismo nombre que el archivo `.pfx`.
-3. El archivo `.pfx` será leído, codificado en Base64 y guardado como un archivo `.txt` en la misma carpeta del `.pfx`.
+1. The script will prompt you to enter the path of the `.pfx` file you want to convert.
+2. Specify a name for the output file (without the extension). If you don't, the same name as the `.pfx` file will be used.
+3. The `.pfx` file will be read, Base64 encoded, and saved as a `.txt` file in the same folder as the `.pfx`.
 
-## Advertencias
+## Warnings
 
-- **MSIX Files**: Asegúrate de que la carpeta que seleccionas contenga únicamente archivos `.msix` para evitar problemas de empaquetado.
-- **Firma**: Si el paquete no puede ser firmado después de tres intentos, verifica que el archivo `.pfx` y la contraseña sean correctos.
-- **Certificados**: Al codificar el certificado `.pfx` en Base64, el archivo resultante contiene información sensible. Asegúrate de almacenar y proteger este archivo adecuadamente.
+- **MSIX Files**: Make sure the folder you select contains only `.msix` files to avoid packaging issues.
+- **Signing**: If the package cannot be signed after three attempts, verify that the `.pfx` file and password are correct.
+- **Certificates**: When Base64 encoding the `.pfx` certificate, the resulting file contains sensitive information. Make sure to store and protect this file appropriately.
